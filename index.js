@@ -32,7 +32,7 @@ app.post('/chargeForCookie', async (request, response) => {
       },
       orderId: createOrderResponse.result.order.id,
       autocomplete: true,
-      locationId: process.env.LOCATION_ID,
+      locationId,
     };
     const createPaymentResponse = await paymentsApi.createPayment(createPaymentRequest);
     console.log(createPaymentResponse.result.payment);
