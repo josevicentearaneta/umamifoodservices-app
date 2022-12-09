@@ -22,7 +22,7 @@ app.post('/chargeForCookie', async (request, response) => {
   try {
     const locationId =  process.env.LOCATION_ID;
     const createOrderRequest = requestBody.orderRequest;
-    const createOrderResponse = await ordersApi.createOrder(createOrderRequest);
+    const createOrderResponse = await ordersApi.createOrder(locationId,createOrderRequest);
 
     const createPaymentRequest = {
       idempotencyKey: crypto.randomBytes(12).toString('hex'),
@@ -32,7 +32,7 @@ app.post('/chargeForCookie', async (request, response) => {
       },
       orderId: createOrderResponse.result.order.id,
       autocomplete: true,
-      locationId,
+      locationId: process.env.LOCATION_ID,
     };
     const createPaymentResponse = await paymentsApi.createPayment(createPaymentRequest);
     console.log(createPaymentResponse.result.payment);
@@ -53,7 +53,7 @@ app.post('/chargeCustomerCard', async (request, response) => {
     const listLocationsResponse = await locationsApi.listLocations();
     const locationId = process.env.LOCATION_ID;
     const createOrderRequest = requestBody.orderRequest;
-    const createOrderResponse = await ordersApi.createOrder(createOrderRequest);
+    const createOrderResponse = await ordersApi.createOrder(locationId, createOrderRequest);
     const createPaymentRequest = {
       idempotencyKey: crypto.randomBytes(12).toString('hex'),
       customerId: requestBody.customer_id,
