@@ -38,13 +38,14 @@ app.post('/chargeForCookie', async (request, response) => {
     const order = await ordersApi.createOrder(locationId, createOrderRequest);
 
     const createPaymentRequest = {
-      "idempotency_key": crypto.randomBytes(12).toString('hex'),
-      "source_id": requestBody.nonce,
-      "amount_money": {
+      "idempotencyKey": crypto.randomBytes(12).toString('hex'),
+      "sourceId": requestBody.nonce,
+      "amountMoney": {
         ...order.order.total_money,
       },
-      "order_id": order.order.id,
+      "orderId": order.order.id,
       "autocomplete": true,
+      
     };
     const createPaymentResponse = await paymentsApi.createPayment(createPaymentRequest);
     console.log(createPaymentResponse.payment);
@@ -70,13 +71,13 @@ app.post('/chargeCustomerCard', async (request, response) => {
     const locationId = locations.locations[0].id;
     const order = await ordersApi.createOrder(locationId, createOrderRequest);
     const createPaymentRequest = {
-      "idempotency_key": crypto.randomBytes(12).toString('hex'),
-      "customer_id": requestBody.customer_id,
-      "source_id": requestBody.customer_card_id,
-      "amount_money": {
+      "idempotencyKey": crypto.randomBytes(12).toString('hex'),
+      "customerId": requestBody.customer_id,
+      "sourceId": requestBody.customer_card_id,
+      "amountMoney": {
         ...order.order.total_money,
       },
-      "order_id": order.order.id
+      "orderId": order.order.id
     };
     const payment = await paymentsApi.createPayment(createPaymentRequest);
     console.log(payment.payment);
@@ -93,26 +94,27 @@ app.post('/chargeCustomerCard', async (request, response) => {
   }
 });
 
+
 app.post('/createCustomerCard', async (request, response) => {
   const requestBody = request.body;
   console.log(requestBody);
   try {
-    const body = new CreateCustomerCardRequest(requestBody.nonce);
-    console.log(body);
-    const customerCardResponse = await customersApi.createCustomerCard(requestBody.customer_id, body);
-    console.log(customerCardResponse.card);
+    const createCustomerCardRequestBody = {
+      cardNonce: requestBody.nonce
+    };
+    const customerCardResponse = await customersApi.createCustomerCard(requestBody.customer_id, createCustomerCardRequestBody);
+    console.log(customerCardResponse.result.card);
 
-    response.status(200).json(customerCardResponse.card);
+    response.status(200).json(customerCardResponse.result.card);
   } catch (e) {
-    delete e.response.req.headers;
-    delete e.response.req._headers;
     console.log(
-      `[Error] Status:${e.status}, Messages: ${JSON.stringify((JSON.parse(e.response.text)).errors, null, 2)}`);
+      `[Error] Status:${e.statusCode}, Messages: ${JSON.stringify(e.errors, null, 2)}`);
 
-    const { errors } = (JSON.parse(e.response.text));
-    sendErrorMessage(errors, response);
+    sendErrorMessage(e.errors, response);
   }
 });
+
+
 
 function getOrderRequest() {
   return {
