@@ -1,79 +1,99 @@
 const express = require('express');
 const app = express();
-const { Client, Environment } = require("square");
+const SquareConnect = require('square-connect');
+const {
+  PaymentsApi,
+  OrdersApi,
+  LocationsApi,
+  CustomersApi,
+  CreateCustomerCardRequest
+} = require('square-connect');
+const defaultClient = SquareConnect.ApiClient.instance;
 const crypto = require('crypto');
 const bodyParser = require('body-parser');
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
-// Initialized the Square Api client:
-//   Set environment
-//   Set access token
-const defaultClient = new Client({
-  environment: process.env.ENVIRONMENT === "PRODUCTION" ? Environment.Production : Environment.Sandbox,
-  accessToken: process.env.ACCESS_TOKEN,
-});
+let oauth2 = defaultClient.authentications['oauth2'];
+oauth2.accessToken = process.env.ACCESS_TOKEN;
 
-const { paymentsApi, ordersApi, locationsApi, customersApi } = defaultClient;
+// Use API_BASE_PATH to switch between sandbox env and production env
+// sandbox: https://connect.squareupsandbox.com
+// production: https://connect.squareup.com
+defaultClient.basePath = process.env.API_BASE_PATH;
+
+const paymentsApi = new PaymentsApi();
+const ordersApi = new OrdersApi();
+const locationsApi = new LocationsApi();
+const customersApi = new CustomersApi();
 
 app.post('/chargeForCookie', async (request, response) => {
   const requestBody = request.body;
+  const createOrderRequest = requestBody.orderRequest;
+
   try {
-    const locationId =  process.env.LOCATION_ID;
-    const createOrderRequest = requestBody.orderRequest;
-    const createOrderResponse = await ordersApi.createOrder(createOrderRequest);
+    const locations = await locationsApi.listLocations();
+    const locationId = locations.locations[0].id;
+    const order = await ordersApi.createOrder(locationId, createOrderRequest);
 
     const createPaymentRequest = {
-      idempotencyKey: crypto.randomBytes(12).toString('hex'),
-      sourceId: requestBody.nonce,
-      amountMoney: {
-        ...createOrderResponse.result.order.totalMoney,
+      "idempotencyKey": crypto.randomBytes(12).toString('hex'),
+      "sourceId": requestBody.nonce,
+      "amountMoney": {
+        ...order.order.total_money,
       },
-      orderId: createOrderResponse.result.order.id,
-      autocomplete: true,
-      locationId,
+      "orderId": order.order.id,
+      "autocomplete": true,
+      
     };
     const createPaymentResponse = await paymentsApi.createPayment(createPaymentRequest);
-    console.log(createPaymentResponse.result.payment);
+    console.log(createPaymentResponse.payment);
 
-    response.status(200).json(createPaymentResponse.result.payment);
+    response.status(200).json(createPaymentResponse.payment);
   } catch (e) {
+    delete e.response.req.headers;
+    delete e.response.req._headers;
     console.log(
-      `[Error] Status:${e.statusCode}, Messages: ${JSON.stringify(e.errors, null, 2)}`);
+      `[Error] Status:${e.status}, Messages: ${JSON.stringify((JSON.parse(e.response.text)).errors, null, 2)}`);
 
-    sendErrorMessage(e.errors, response);
+    const { errors } = (JSON.parse(e.response.text));
+    sendErrorMessage(errors, response);
   }
 });
 
 app.post('/chargeCustomerCard', async (request, response) => {
   const requestBody = request.body;
+  const createOrderRequest = requestBody.orderRequest;
 
   try {
-    const listLocationsResponse = await locationsApi.listLocations();
-    const locationId = process.env.LOCATION_ID;
-    const createOrderRequest = requestBody.orderRequest;
-    const createOrderResponse = await ordersApi.createOrder(createOrderRequest);
+    const locations = await locationsApi.listLocations();
+    const locationId = locations.locations[0].id;
+    const order = await ordersApi.createOrder(locationId, createOrderRequest);
     const createPaymentRequest = {
-      idempotencyKey: crypto.randomBytes(12).toString('hex'),
-      customerId: requestBody.customer_id,
-      sourceId: requestBody.customer_card_id,
-      amountMoney: {
-        ...createOrderResponse.result.order.totalMoney,
+      "idempotencyKey": crypto.randomBytes(12).toString('hex'),
+      "customerId": requestBody.customer_id,
+      "sourceId": requestBody.customer_card_id,
+      "amountMoney": {
+        ...order.order.total_money,
       },
-      orderId: createOrderResponse.result.order.id
+      "orderId": order.order.id
     };
-    const createPaymentResponse = await paymentsApi.createPayment(createPaymentRequest);
-    console.log(createPaymentResponse.result.payment);
+    const payment = await paymentsApi.createPayment(createPaymentRequest);
+    console.log(payment.payment);
 
-    response.status(200).json(createPaymentResponse.result.payment);
+    response.status(200).json(payment.payment);
   } catch (e) {
+    delete e.response.req.headers;
+    delete e.response.req._headers;
     console.log(
-      `[Error] Status:${e.statusCode}, Messages: ${JSON.stringify(e.errors, null, 2)}`);
+      `[Error] Status:${e.status}, Messages: ${JSON.stringify((JSON.parse(e.response.text)).errors, null, 2)}`);
 
-    sendErrorMessage(e.errors, response);
+    const { errors } = (JSON.parse(e.response.text));
+    sendErrorMessage(errors, response);
   }
 });
+
 
 app.post('/createCustomerCard', async (request, response) => {
   const requestBody = request.body;
@@ -94,16 +114,17 @@ app.post('/createCustomerCard', async (request, response) => {
   }
 });
 
-function getOrderRequest(locationId) {
+
+
+function getOrderRequest() {
   return {
-    idempotencyKey: crypto.randomBytes(12).toString('hex'),
+    idempotency_key: crypto.randomBytes(12).toString('hex'),
     order: {
-      locationId: locationId,
-      lineItems: [
+      line_items: [
         {
           name: "Cookie 🍪",
           quantity: "1",
-          basePriceMoney: {
+          base_price_money: {
             amount: 100,
             currency: "USD"
           }
