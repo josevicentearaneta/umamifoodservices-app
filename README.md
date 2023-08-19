@@ -1,4 +1,4 @@
-# In-App Payments Server Quickstart
+# In-App Payments Server Quickstart guide
 
 This is an example server with a single endpoint of `/chargeForCookie` for processing payments using Square. The server expects a `POST` request with a payload of `application/json` following the format:
 ```
