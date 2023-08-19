@@ -43,7 +43,6 @@ app.post("/chargeForCookie", async (request, response) => {
     const createPaymentResponse = await paymentsApi.createPayment(
       createPaymentRequest
     );
-    console.log(createPaymentResponse.result.payment);
 
     response.status(200).json(createPaymentResponse.result.payment);
   } catch (e) {
@@ -81,7 +80,6 @@ app.post("/chargeCustomerCard", async (request, response) => {
     const createPaymentResponse = await paymentsApi.createPayment(
       createPaymentRequest
     );
-    console.log(createPaymentResponse.result.payment);
 
     response.status(200).json(createPaymentResponse.result.payment);
   } catch (e) {
@@ -99,7 +97,6 @@ app.post("/chargeCustomerCard", async (request, response) => {
 
 app.post("/createCustomerCard", async (request, response) => {
   const requestBody = request.body;
-  console.log(requestBody);
   try {
     const createCustomerCardRequestBody = {
       cardNonce: requestBody.nonce,
@@ -108,8 +105,6 @@ app.post("/createCustomerCard", async (request, response) => {
       requestBody.customer_id,
       createCustomerCardRequestBody
     );
-    console.log(customerCardResponse.result.card);
-
     response.status(200).json(customerCardResponse.result.card);
   } catch (e) {
     console.log(
