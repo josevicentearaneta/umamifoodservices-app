@@ -365,7 +365,7 @@ app.get("/generatePdf", async (request, response) => {
 
     // Set response headers for PDF
     response.setHeader("Content-Type", "application/pdf");
-    response.setHeader("Content-Disposition", "inline; filename=sample.pdf");
+    response.setHeader("Content-Disposition", "inline; filename=invoice.pdf");
   } catch (error) {
     console.error(error);
     response.status(500).send({
