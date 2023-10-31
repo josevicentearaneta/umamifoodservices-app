@@ -222,53 +222,51 @@ function sendErrorMessage(errors, response) {
 
 app.get("/generatePdf", async (request, response) => {
   try {
-    // orders
+    const order = request.query ?? {};
+    const items = JSON.parse(order?.item_data);
 
-    const orders = [
-      {
-        id: 1,
-        product: "TV",
-        quantity: 32,
-        price: 100,
-      },
-      {
-        id: 2,
-        product: "mobile",
-        quantity: 32,
-        price: 100,
-      },
-      {
-        id: 4,
-        product: "remote",
-        quantity: 32,
-        price: 100,
-      },
-    ];
-
-    let orderInfo = {
-      orderNo: "15484659",
-      invoiceNo: "MH-MU-1077",
-      invoiceDate: "11/05/2021",
-      invoiceTime: "10:57:00 PM",
-      products: [
-        {
-          id: "15785",
-          name: "Case - Bag - White Grocery Bag #6",
-          price: "$30.00",
-          qty: 1,
-        },
-        {
-          id: "15786",
-          name: "Dell Magic Mouse WQ1545",
-          price: "$30.00",
-          qty: 2,
-        },
-      ],
-      totalValue: "$60.00 ",
+    const getQuantity = (item) => {
+      if (item.primaryQuantity > 0 && item.secondaryQuantity === 0) {
+        return item.primaryQuantity;
+      }
+      if (item.secondaryQuantity > 0 && item.primaryQuantity === 0) {
+        return item.secondaryQuantity;
+      }
+      if (item.secondaryQuantity > 0 && item.primaryQuantity > 0) {
+        return `${item.primaryQuantity}/${item.secondaryQuantity}`;
+      }
     };
 
-    const terms =
-      "By signing this document I/We acknowledge the receipt of invoiced products. I/We agree to pay a finance charge of 1.5%per month on all past due accounts. Umami will charge a $30 processing fee on all returned checks for ACH Customers. A $15 charge will be assessed on order canceled on same day or on second delivery attempt. Claims must be made upon the time of delivery. Please weigh and inspect all items with the driver upon delivery.";
+    const getSoldByValue = (item) => {
+      if (item.primaryQuantity > 0 && item.secondaryQuantity === 0) {
+        return "Case - ";
+      }
+      if (item.secondaryQuantity > 0 && item.primaryQuantity === 0) {
+        return "Unit - ";
+      }
+      return "Case / Unit - ";
+    };
+
+    const getValue = (item) =>
+      (item?.primaryQuantity ?? 1) * (item?.CustomerPrice ?? 1) +
+      (item?.secondaryQuantity ?? 0) * (item?.CustomerUnitPrice ?? 1);
+
+    const getTotalPrice = () => {
+      let sum = 0;
+      items.forEach((item) => {
+        sum += getValue(item);
+      });
+      return sum.toFixed(2);
+    };
+
+    const todayDate = () => {
+      const currentDate = new Date();
+      const day = String(currentDate.getDate()).padStart(2, "0");
+      const month = String(currentDate.getMonth() + 1).padStart(2, "0");
+      const year = currentDate.getFullYear();
+
+      return `${day}/${month}/${year}`;
+    };
 
     let fontNormal = "Helvetica";
     let fontBold = "Helvetica-Bold";
@@ -281,10 +279,10 @@ app.get("/generatePdf", async (request, response) => {
     doc
       .image(imagePath, { scale: 0.2 })
       .fontSize(18)
-      .font("Helvetica-Bold")
+      .font(fontBold)
       .text("Umami Food Services", 200, 100)
       .fontSize(12)
-      .font("Helvetica")
+      .font(fontNormal)
       .text("14841 Moran St", 200, 124)
       .text("Westminster, CA 92683 US", 200, 140)
       .text("sales@umamiservices.com", 200, 156);
@@ -292,82 +290,36 @@ app.get("/generatePdf", async (request, response) => {
     doc
       .fillColor("#FF8C00")
       .fontSize(26)
-      .font("Helvetica-Bold")
-      .text("INVOICE", 60, 180, {
-        // align: "center",
-      });
+      .font(fontBold)
+      .text("INVOICE", 60, 180, {});
 
-    // Bill Section
     doc.moveDown(0.4);
 
     doc
       .fillColor("#000000")
-      .font("Helvetica-Bold")
+      .font(fontBold)
       .fontSize(18)
       .text("Bill To", { align: "start" })
       .fontSize(12)
-      .font("Helvetica")
-      .text("Gourav")
-      .text("Gourav Singh")
-      .text("Address 1, Ambala Haryana 12345");
+      .font(fontNormal)
+      .text(order.name)
+      .text(order.businessName)
+      .text(order.confirmedDeliveryAddress);
 
     doc
       .fillColor("#000000")
-      .font("Helvetica-Bold")
+      .font(fontBold)
       .fontSize(14)
       .text("INVOICE #", 400, 225, { continued: true, paragraphGap: 10 })
       .fontSize(12)
-      .font("Helvetica")
-      .text("28/09/23", 440);
-    doc
-      .fillColor("#000000")
-      .font("Helvetica-Bold")
-      .fontSize(14)
-      .text("DATE #", 400, 245, {
-        continued: true,
-        // align: "right",
-      })
-      .fontSize(12)
-      .font("Helvetica")
-      .text("28/09/23", 455);
-    doc
-      .fillColor("#000000")
-      .font("Helvetica-Bold")
-      .fontSize(14)
-      .text("DUE DATE #", 400, 265, { continued: true })
-      .fontSize(12)
-      .font("Helvetica")
-      .text("28/09/23", 460);
+      .font(fontNormal)
+      .text(todayDate(), 440);
 
     doc.moveDown(4.4);
 
     doc.stroke();
-    // these examples are easier to see with a large line width
     doc.lineWidth(25).fillColor("red");
-    // doc.rect(doc.x, 0, 410, doc.y).stroke();
-    // Scale the image
-    // Get a reference to the Outline root
 
-    // // Set up table headers
-
-    // doc
-    //   .fontSize(12)
-    //   .text("Order ID", 50)
-    //   .text("Product", 150)
-    //   .text("Quantity", 300)
-    //   .text("Price", 400);
-    // doc.moveDown();
-    // // Add orders to the table
-    // orders.forEach((order) => {
-    //   doc
-    //     .text(order.id.toString(), 50)
-    //     .text(order.product, 150)
-    //     .text(order.quantity.toString(), 300)
-    //     .text("$" + order.price.toString(), 400);
-    //   doc.moveDown();
-    // });
-
-    // Finalize the PDF
     doc.lineWidth(0.5);
     doc.strokeColor("#fd8c02");
     doc.moveTo(50, 300).lineTo(570, 300).stroke();
@@ -378,35 +330,36 @@ app.get("/generatePdf", async (request, response) => {
     doc.font(fontBold).text("RATE", 400, 317, { width: 200 });
     doc.font(fontBold).text("AMOUNT", 500, 317, { width: 100 });
 
-    let productNo = 1;
-    orderInfo.products.forEach((element) => {
-      let y = 330 + productNo * 20;
+    let itemNo = 1;
+    items.forEach((item) => {
+      let y = 330 + itemNo * 20;
       doc
         .fillColor("#000")
         .font(fontNormal)
-        .text(element.qty, 60, y, { width: 90 });
-      doc.font(fontNormal).text(element.name, 110, y, { width: 300 });
+        .text(getQuantity(item), 60, y, { width: 90 });
+      doc
+        .font(fontNormal)
+        .text(`${getSoldByValue(item)}${item.Name}`, 110, y, { width: 300 });
       doc.font(fontNormal).text("", 400, y, { width: 100 });
-      doc.font(fontNormal).text(element.price, 500, y, { width: 100 });
-      productNo++;
+      doc
+        .font(fontNormal)
+        .text(`$${getValue(item).toFixed(2)}`, 500, y, { width: 100 });
+      itemNo++;
     });
 
-    productNo++;
+    itemNo++;
 
     doc.dash(5, { space: 2 });
     doc.lineWidth(0.5);
     doc.strokeColor("#333333");
-    doc.moveTo(50, 390).lineTo(570, 390).stroke();
+    doc
+      .moveTo(50, 310 + itemNo * 20)
+      .lineTo(570, 310 + itemNo * 20)
+      .stroke();
     doc.undash();
 
-    doc.font(fontBold).text("BALANCE DUE", 400, 330 + productNo * 17);
-    doc.font(fontBold).text(orderInfo.totalValue, 500, 330 + productNo * 17);
-
-    doc
-      .fillColor("#000000")
-      .font(fontNormal)
-      .fontSize(11)
-      .text(terms, 60, 500, { continued: true });
+    doc.font(fontBold).text("TOTAL", 400, 330 + itemNo * 20);
+    doc.font(fontBold).text(`$${getTotalPrice()}`, 500, 330 + itemNo * 20);
 
     doc.end();
 
