@@ -4,6 +4,9 @@ const { Client, Environment } = require("square");
 const crypto = require("crypto");
 const bodyParser = require("body-parser");
 const PDFDocument = require("pdfkit"); // Import the pdfkit library
+const stripe = require("stripe")(
+  "sk_test_51O7hy4SBm1p9gX4gNY0QR0XrUV0ALSa4cZY3HxE5iZfSYjVop0foukqF18AQwFzbOK3mfRiqlBmQ7esVW9rl2FZm00L5JqU55C"
+);
 
 const fs = require("fs");
 const path = require("path");
@@ -373,6 +376,71 @@ app.get("/generatePdf", async (request, response) => {
     });
   }
 });
+
+app.post("/create-stripe-customer", async (req, res) => {
+  try {
+    const customer = req.body.customer;
+    let customerId = customer?.stripeCustomer;
+
+    if (!customerId) {
+      const data = {
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone,
+        address: {
+          city: customer.city,
+          country: "US",
+          line1: customer.address1,
+          line2: customer.address2,
+          postal_code: customer.zip,
+          state: customer.state,
+        },
+        metadata: {
+          reference_id: customer.id,
+        },
+      };
+      const response = await stripe.customers.create(data);
+      customerId = response.id;
+    }
+
+    res.send({
+      customer: customerId,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ errorMessage: error });
+  }
+});
+
+app.post("/create-stripe-payment-intent", async (req, res) => {
+  try {
+    const order = req.body?.order;
+    const customer = req.body?.customer;
+
+    const orderId = order.timestampCreated?.seconds;
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: order.totalCost * 100,
+      currency: "usd",
+      customer: customer,
+      automatic_payment_methods: {
+        enabled: true,
+      },
+      description: `Order#: ${orderId ? Number(orderId) : order?.id}`,
+    });
+
+    res.send({
+      paymentIntent: paymentIntent.client_secret,
+      customer: customer,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({
+      errorMessage: error,
+    });
+  }
+});
+
 // listen for requests :)
 const listener = app.listen(4000, function () {
   console.log("Your app is listening on port " + listener.address().port);
