@@ -382,6 +382,15 @@ app.post("/create-stripe-customer", async (req, res) => {
     const customer = req.body.customer;
     let customerId = customer?.stripeCustomer;
 
+    if (customerId) {
+      try {
+        const res = await stripe.customers.retrieve(customerId);
+        if (res?.deleted) customerId = null;
+      } catch (err) {
+        customerId = null;
+      }
+    }
+
     if (!customerId) {
       const data = {
         name: customer.name,
@@ -417,7 +426,7 @@ app.post("/create-stripe-payment-intent", async (req, res) => {
     const order = req.body?.order;
     const customer = req.body?.customer;
 
-    const orderId = order.timestampCreated?.seconds;
+    const orderId = order.timestampCreated?.seconds ?? order?.id;
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: order.totalCost * 100,
@@ -426,7 +435,132 @@ app.post("/create-stripe-payment-intent", async (req, res) => {
       automatic_payment_methods: {
         enabled: true,
       },
-      description: `Order#: ${orderId ? Number(orderId) : order?.id}`,
+      description: `Order#: ${Number(orderId)}`,
+    });
+
+    res.send({
+      paymentIntent: paymentIntent.client_secret,
+      customer: customer,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({
+      errorMessage: error,
+    });
+  }
+});
+
+app.post("/create-stripe-setup-intent", async (req, res) => {
+  try {
+    const customer = req.body?.customer;
+    const customerId = customer?.stripeCustomer;
+
+    const paymentIntent = await stripe.setupIntents.create({
+      customer: customerId,
+      description: `setup intent - customer: ${customer?.id} email: ${
+        customer?.email ?? customer?.email_address
+      }`,
+    });
+
+    res.send({
+      paymentIntent: paymentIntent.client_secret,
+      customer: customerId,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({
+      errorMessage: error,
+    });
+  }
+});
+
+app.post("/fetch-stripe-all-saved-cards", async (req, res) => {
+  try {
+    const customer = req.body?.customer;
+
+    const response = await stripe.paymentMethods.list({
+      customer: customer,
+      type: "card",
+    });
+
+    res.send({
+      savedCards: response?.data ?? [],
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({
+      errorMessage: error,
+    });
+  }
+});
+
+app.post("/delete-stripe-saved-card", async (req, res) => {
+  try {
+    const card = req.body?.card;
+
+    await stripe.paymentMethods.detach(card.id);
+
+    res.send({
+      success: true,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({
+      errorMessage: error,
+    });
+  }
+});
+
+app.post("/charge-stripe-saved-card", async (req, res) => {
+  try {
+    const card = req.body?.card;
+    const customer = req.body?.customer;
+    const order = req.body?.order;
+
+    const orderId = order.timestampCreated?.seconds ?? order?.id;
+
+    await stripe.paymentIntents.create({
+      amount: order.totalCost * 100,
+      currency: "usd",
+      customer: customer,
+      payment_method: card.id,
+      off_session: true,
+      confirm: true,
+      description: `Order#: ${Number(orderId)}`,
+    });
+
+    res.send({
+      success: true,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({
+      errorMessage: error,
+    });
+  }
+});
+
+app.post("/create-stripe-ach-payment-intent", async (req, res) => {
+  try {
+    const order = req.body?.order;
+    const customer = req.body?.customer;
+
+    const orderId = order.timestampCreated?.seconds ?? order?.id;
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: order.totalCost * 100,
+      currency: "usd",
+      customer: customer,
+      description: `Order#: ${Number(orderId)}`,
+      setup_future_usage: "off_session",
+      payment_method_types: ["us_bank_account"],
+      payment_method_options: {
+        us_bank_account: {
+          financial_connections: {
+            permissions: ["payment_method", "balances"],
+          },
+        },
+      },
     });
 
     res.send({
