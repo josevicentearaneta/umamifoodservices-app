@@ -5,7 +5,7 @@ const crypto = require("crypto");
 const bodyParser = require("body-parser");
 const PDFDocument = require("pdfkit"); // Import the pdfkit library
 const stripe = require("stripe")(
-  "sk_test_51O7hy4SBm1p9gX4gNY0QR0XrUV0ALSa4cZY3HxE5iZfSYjVop0foukqF18AQwFzbOK3mfRiqlBmQ7esVW9rl2FZm00L5JqU55C"
+  "sk_test_51NaWq3AfDQQKXJwGvYbce5wyZNNRods6PESd8HRNPmRpONBoxzt14u8JcoDxcAeDf3UMnzq6iAGINZQoZL65N2q900h9l4Imh3"
 );
 
 const fs = require("fs");
