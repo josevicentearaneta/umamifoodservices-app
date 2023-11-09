@@ -8,6 +8,24 @@ const stripe = require("stripe")(
   "sk_test_51NaWq3AfDQQKXJwGvYbce5wyZNNRods6PESd8HRNPmRpONBoxzt14u8JcoDxcAeDf3UMnzq6iAGINZQoZL65N2q900h9l4Imh3"
 );
 
+const firebase = require("firebase/app");
+require("firebase/firestore");
+const { getFirestore, doc, updateDoc } = require("@firebase/firestore");
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA5zB6NLN9NSmyi7NHtcyFgUo75-AXKPmo",
+  authDomain: "foodapp-testenv.firebaseapp.com",
+  databaseURL: "https://foodapp-testenv-default-rtdb.firebaseio.com",
+  projectId: "foodapp-testenv",
+  storageBucket: "foodapp-testenv.appspot.com",
+  messagingSenderId: "493591063203",
+  appId: "1:493591063203:web:fdc7f577cfd77a11eb6d16",
+  measurementId: "G-VBQDFV8DKL",
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = getFirestore();
+
 const fs = require("fs");
 const path = require("path");
 
@@ -425,17 +443,17 @@ app.post("/create-stripe-payment-intent", async (req, res) => {
   try {
     const order = req.body?.order;
     const customer = req.body?.customer;
-
-    const orderId = order.timestampCreated?.seconds ?? order?.id;
+    const orderId = order?.id;
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: order.totalCost * 100,
       currency: "usd",
       customer: customer,
+      metadata: { orderId },
       automatic_payment_methods: {
         enabled: true,
       },
-      description: `Order#: ${Number(orderId)}`,
+      description: `Order#: ${orderId}`,
     });
 
     res.send({
@@ -516,8 +534,7 @@ app.post("/charge-stripe-saved-card", async (req, res) => {
     const card = req.body?.card;
     const customer = req.body?.customer;
     const order = req.body?.order;
-
-    const orderId = order.timestampCreated?.seconds ?? order?.id;
+    const orderId = order?.id;
 
     await stripe.paymentIntents.create({
       amount: order.totalCost * 100,
@@ -526,7 +543,8 @@ app.post("/charge-stripe-saved-card", async (req, res) => {
       payment_method: card.id,
       off_session: true,
       confirm: true,
-      description: `Order#: ${Number(orderId)}`,
+      description: `Order#: ${orderId}`,
+      metadata: { orderId },
     });
 
     res.send({
@@ -545,15 +563,16 @@ app.post("/create-stripe-ach-payment-intent", async (req, res) => {
     const order = req.body?.order;
     const customer = req.body?.customer;
 
-    const orderId = order.timestampCreated?.seconds ?? order?.id;
+    const orderId = order?.id;
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: order.totalCost * 100,
       currency: "usd",
       customer: customer,
-      description: `Order#: ${Number(orderId)}`,
+      description: `Order#: ${orderId}`,
       setup_future_usage: "off_session",
       payment_method_types: ["us_bank_account"],
+      metadata: { orderId },
       payment_method_options: {
         us_bank_account: {
           financial_connections: {
@@ -571,6 +590,32 @@ app.post("/create-stripe-ach-payment-intent", async (req, res) => {
     console.error(error);
     res.status(500).send({
       errorMessage: error,
+    });
+  }
+});
+
+app.post("/stripe-webhook", async (req, res) => {
+  try {
+    const type = req.body?.type;
+
+    if (type === "payment_intent.payment_failed") {
+      const orderId = req.body?.data?.object?.metadata?.orderId;
+
+      const docRef = doc(db, "confirmed", orderId);
+
+      const updateData = {
+        payedWith: "None",
+      };
+
+      await updateDoc(docRef, updateData);
+    }
+
+    res.send({
+      success: true,
+    });
+  } catch (error) {
+    res.send({
+      success: false,
     });
   }
 });
