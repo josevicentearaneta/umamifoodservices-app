@@ -226,7 +226,7 @@ app.get("/generatePdf", async (request, response) => {
   try {
     const order = request.query || {};
     console.log("here--------");
-    const items = JSON.parse(order?.item_data);
+    const items = JSON.parse(order.item_data || {});
 
     const getQuantity = (item) => {
       if (item.primaryQuantity > 0 && item.secondaryQuantity === 0) {
@@ -251,8 +251,8 @@ app.get("/generatePdf", async (request, response) => {
     };
 
     const getValue = (item) =>
-      (item?.primaryQuantity ?? 1) * (item?.CustomerPrice ?? 1) +
-      (item?.secondaryQuantity ?? 0) * (item?.CustomerUnitPrice ?? 1);
+      (item.primaryQuantity || 1) * (item.CustomerPrice || 1) +
+      (item.secondaryQuantity || 0) * (item.CustomerUnitPrice || 1);
 
     const getTotalPrice = () => {
       let sum = 0;
