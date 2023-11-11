@@ -8,8 +8,6 @@ const PDFDocument = require("pdfkit"); // Import the pdfkit library
 const fs = require("fs");
 const path = require("path");
 
-console.log("port--------", process.env.PORT);
-
 // Define the file path
 const imagePath = path.join(__dirname, "images", "Logo.png");
 
@@ -225,7 +223,6 @@ function sendErrorMessage(errors, response) {
 app.get("/generatePdf", async (request, response) => {
   try {
     const order = request.query || {};
-    console.log("here--------");
     const items = JSON.parse(order.item_data || {});
 
     const getQuantity = (item) => {
