@@ -250,7 +250,7 @@ app.get("/generatePdf", async (request, response) => {
 
     const getValue = (item) => {
       const qty = getQuantity(item);
-      return qty * (item?.CustomerPrice || item?.CustomerUnitPrice);
+      return qty * (item.CustomerPrice || item.CustomerUnitPrice);
     };
 
     const getTotalPrice = () => {
