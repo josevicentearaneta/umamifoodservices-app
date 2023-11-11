@@ -224,7 +224,7 @@ function sendErrorMessage(errors, response) {
 
 app.get("/generatePdf", async (request, response) => {
   try {
-    const order = request.query ?? {};
+    const order = request.query || {};
     console.log("here--------");
     const items = JSON.parse(order?.item_data);
 
