@@ -243,8 +243,9 @@ function sendErrorMessage(errors, response) {
 
 app.get("/generatePdf", async (request, response) => {
   try {
-    const order = request.query ?? {};
-    const items = JSON.parse(order?.item_data);
+    const order = request.query || {};
+    const items = JSON.parse(order.item_data || {});
+    const confirmedOrder = JSON.parse(order.order_detail || {});
 
     const getQuantity = (item) => {
       if (item.primaryQuantity > 0 && item.secondaryQuantity === 0) {
@@ -268,9 +269,10 @@ app.get("/generatePdf", async (request, response) => {
       return "Case / Unit - ";
     };
 
-    const getValue = (item) =>
-      (item?.primaryQuantity ?? 1) * (item?.CustomerPrice ?? 1) +
-      (item?.secondaryQuantity ?? 0) * (item?.CustomerUnitPrice ?? 1);
+    const getValue = (item) => {
+      const qty = getQuantity(item);
+      return qty * (item.CustomerPrice || item.CustomerUnitPrice);
+    };
 
     const getTotalPrice = () => {
       let sum = 0;
@@ -323,9 +325,9 @@ app.get("/generatePdf", async (request, response) => {
       .text("Bill To", { align: "start" })
       .fontSize(12)
       .font(fontNormal)
-      .text(order.name)
-      .text(order.businessName)
-      .text(order.confirmedDeliveryAddress);
+      .text(confirmedOrder.name)
+      .text(confirmedOrder.businessName)
+      .text(confirmedOrder.confirmedDeliveryAddress);
 
     doc
       .fillColor("#000000")
@@ -380,7 +382,9 @@ app.get("/generatePdf", async (request, response) => {
     doc.undash();
 
     doc.font(fontBold).text("TOTAL", 400, 330 + itemNo * 20);
-    doc.font(fontBold).text(`$${getTotalPrice()}`, 500, 330 + itemNo * 20);
+    doc
+      .font(fontBold)
+      .text(`$${getTotalPrice()}`, 500, 330 + itemNo * 20, { width: 100 });
 
     doc.end();
 
@@ -621,6 +625,6 @@ app.post("/stripe-webhook", async (req, res) => {
 });
 
 // listen for requests :)
-const listener = app.listen(4000, function () {
+const listener = app.listen(process.env.PORT || 3000, function () {
   console.log("Your app is listening on port " + listener.address().port);
 });
