@@ -1,26 +1,25 @@
 const express = require("express");
 const app = express();
+require("dotenv").config();
 const { Client, Environment } = require("square");
 const crypto = require("crypto");
 const bodyParser = require("body-parser");
 const PDFDocument = require("pdfkit"); // Import the pdfkit library
-const stripe = require("stripe")(
-  "sk_test_51NaWq3AfDQQKXJwGvYbce5wyZNNRods6PESd8HRNPmRpONBoxzt14u8JcoDxcAeDf3UMnzq6iAGINZQoZL65N2q900h9l4Imh3"
-);
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 const firebase = require("firebase/app");
 require("firebase/firestore");
 const { getFirestore, doc, updateDoc } = require("@firebase/firestore");
 
 const firebaseConfig = {
-  apiKey: "AIzaSyA5zB6NLN9NSmyi7NHtcyFgUo75-AXKPmo",
-  authDomain: "foodapp-testenv.firebaseapp.com",
-  databaseURL: "https://foodapp-testenv-default-rtdb.firebaseio.com",
-  projectId: "foodapp-testenv",
-  storageBucket: "foodapp-testenv.appspot.com",
-  messagingSenderId: "493591063203",
-  appId: "1:493591063203:web:fdc7f577cfd77a11eb6d16",
-  measurementId: "G-VBQDFV8DKL",
+  apiKey: process.env.FIREBASE_APIKEY,
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+  databaseURL: process.env.FIREBASE_DATABASE_URL,
+  projectId: process.env.FIREBASE_PROJECT_ID,
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.FIREBASE_APP_ID,
+  measurementId: process.env.FIREBASE_MEASUREMENT_ID,
 };
 
 firebase.initializeApp(firebaseConfig);
