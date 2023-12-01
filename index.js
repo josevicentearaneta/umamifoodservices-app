@@ -9,7 +9,7 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 const firebase = require("firebase/app");
 require("firebase/firestore");
-const { getFirestore, doc, updateDoc } = require("@firebase/firestore");
+const { getFirestore, doc, updateDoc, getDoc } = require("@firebase/firestore");
 
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_APIKEY,
@@ -449,7 +449,7 @@ app.post("/create-stripe-payment-intent", async (req, res) => {
     const orderId = order?.id;
 
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: order.totalCost * 100,
+      amount: order.totalCost * 1.03 * 100,
       currency: "usd",
       customer: customer,
       metadata: { orderId },
@@ -540,7 +540,7 @@ app.post("/charge-stripe-saved-card", async (req, res) => {
     const orderId = order?.id;
 
     await stripe.paymentIntents.create({
-      amount: order.totalCost * 100,
+      amount: order.totalCost * 1.03 * 100,
       currency: "usd",
       customer: customer,
       payment_method: card.id,
@@ -569,7 +569,7 @@ app.post("/create-stripe-ach-payment-intent", async (req, res) => {
     const orderId = order?.id;
 
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: order.totalCost * 100,
+      amount: order.totalCost * 1.03 * 100,
       currency: "usd",
       customer: customer,
       description: `Order#: ${orderId}`,
@@ -600,14 +600,38 @@ app.post("/create-stripe-ach-payment-intent", async (req, res) => {
 app.post("/stripe-webhook", async (req, res) => {
   try {
     const type = req.body?.type;
+    const orderId = req.body?.data?.object?.metadata?.orderId;
+
+    if (
+      type === "payment_intent.succeeded" ||
+      type === "invoice.payment_succeeded"
+    ) {
+      const orderSnap = await getDoc(doc(db, "confirmed", orderId));
+      const order = orderSnap.data();
+      const paymentSelected = order.paymentSelected;
+
+      if (paymentSelected === "ACH") {
+        const docRef = doc(db, "confirmed", orderId);
+        const updateData = {
+          payedWith: "ACH",
+          stripe_ach_payment: {
+            in_progress: false,
+            success: true,
+          },
+        };
+        await updateDoc(docRef, updateData);
+      }
+    }
 
     if (type === "payment_intent.payment_failed") {
-      const orderId = req.body?.data?.object?.metadata?.orderId;
-
       const docRef = doc(db, "confirmed", orderId);
 
       const updateData = {
         payedWith: "None",
+        stripe_ach_payment: {
+          in_progress: false,
+          success: false,
+        },
       };
 
       await updateDoc(docRef, updateData);
