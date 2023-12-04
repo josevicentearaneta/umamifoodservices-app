@@ -539,7 +539,7 @@ app.post("/charge-stripe-saved-card", async (req, res) => {
     const order = req.body?.order;
     const orderId = order?.id;
 
-    await stripe.paymentIntents.create({
+    const data = {
       amount: order.totalCost * 1.03 * 100,
       currency: "usd",
       customer: customer,
@@ -548,7 +548,11 @@ app.post("/charge-stripe-saved-card", async (req, res) => {
       confirm: true,
       description: `Order#: ${orderId}`,
       metadata: { orderId },
-    });
+    };
+
+    console.log("data--------------", data);
+
+    await stripe.paymentIntents.create(data);
 
     res.send({
       success: true,
