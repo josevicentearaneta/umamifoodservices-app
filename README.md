@@ -14,7 +14,7 @@ Before getting started, make sure you have the following installed:
 1. Clone the repository:
 
 ```
-git clone https://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@github.com/begouravdev/umamifoodservices-app.git
+git clone https://{token}@github.com/begouravdev/umamifoodservices-app.git
 ```
 
 2. Navigate to the project directory:
